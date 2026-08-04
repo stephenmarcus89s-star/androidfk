@@ -135,7 +135,7 @@ class DownloadService : Service() {
                         progress = progress.coerceIn(0, 100),
                         downloadedBytes = downloaded,
                         totalBytes = totalBytes
-                    )
+                    ))
                     lastProgressUpdate = now
                 }
                 if (now - lastNotificationUpdate > 1000) {
