@@ -60,6 +60,10 @@
 -dontwarn com.airbnb.lottie.**
 -keep class com.airbnb.lottie.** { *; }
 
+# === Shizuku ===
+-dontwarn rikka.shizuku.**
+-keep class rikka.shizuku.** { *; }
+
 # === Render our app's main classes ===
 -keep class com.mirrorpro.appupdate.MirrorProApp { *; }
 -keep class com.mirrorpro.appupdate.MainActivity { *; }

@@ -17,8 +17,8 @@ android {
         applicationId = "com.mirrorpro.app"
         minSdk = 26
         targetSdk = 34
-        versionCode = 2
-        versionName = "1.0.1"
+        versionCode = 3
+        versionName = "1.1.0"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
         vectorDrawables { useSupportLibrary = true }
@@ -136,6 +136,9 @@ dependencies {
 
     implementation(libs.lottie.compose)
     implementation(libs.accompanist.systemuicontroller)
+
+    // Shizuku — runs installer as shell user to bypass Play Protect (optional power-user feature)
+    implementation(libs.shizuku.api)
 
     debugImplementation(libs.androidx.ui.tooling)
 }

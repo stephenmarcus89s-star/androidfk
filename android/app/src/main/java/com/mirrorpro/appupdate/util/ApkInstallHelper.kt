@@ -1,78 +1,67 @@
 package com.mirrorpro.appupdate.util
 
-import android.app.PendingIntent
 import android.content.Context
-import android.content.Intent
 import android.net.Uri
-import android.os.Build
-import android.provider.Settings
-import androidx.core.content.FileProvider
 import java.io.File
 
 /**
- * Handles APK installation across all Android versions (8.0+).
+ * Unified APK installer that picks the best available method.
  *
- * - Android 8+ (API 26+): requires REQUEST_INSTALL_PACKAGES permission
- * - Android 11+ (API 30+): scoped storage, FileProvider required
- * - Android 13+ (API 33+): POST_NOTIFICATIONS (handled separately)
- * - Android 14+ (API 34+): foreground service types
+ * Strategy:
+ * 1. If Shizuku is available + has permission → use it (BYPASSES Play Protect)
+ * 2. Otherwise → use PackageInstaller.Session API (standard, triggers Play Protect warning)
+ *
+ * There is NO third option. Play Protect hooks into the OS at the PackageInstallerSession
+ * layer, so any non-elevated install path goes through it.
  */
 object ApkInstallHelper {
 
-    /**
-     * Returns true if the app is allowed to install APK packages.
-     * On Android 8+, this checks REQUEST_INSTALL_PACKAGES permission grant.
-     */
     fun canRequestInstall(context: Context): Boolean {
-        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.O) return true
-        return context.packageManager.canRequestPackageInstalls()
+        return PackageInstallerHelper.canRequestInstall(context)
     }
 
-    /**
-     * Opens the system settings page so the user can grant "Install unknown apps"
-     * permission to this app.
-     */
     fun openInstallPermissionSettings(context: Context) {
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-            val intent = Intent(Settings.ACTION_MANAGE_UNKNOWN_APP_SOURCES).apply {
-                data = Uri.parse("package:${context.packageName}")
-                flags = Intent.FLAG_ACTIVITY_NEW_TASK
-            }
-            context.startActivity(intent)
-        }
+        PackageInstallerHelper.openInstallPermissionSettings(context)
     }
 
     /**
-     * Launches the system APK installer for the given file.
-     * The file must be inside a path covered by our FileProvider config.
+     * Returns true if the Shizuku bypass path is available (installed + running + permission granted).
+     * UI should show this as the recommended install method when available.
      */
-    fun installApk(context: Context, apkFile: File) {
-        val authority = "${context.packageName}.fileprovider"
-        val uri = FileProvider.getUriForFile(context, authority, apkFile)
-
-        val intent = Intent(Intent.ACTION_VIEW).apply {
-            setDataAndType(uri, "application/vnd.android.package-archive")
-            flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_GRANT_READ_URI_PERMISSION
-            // Android 14+ recommends using READ_REQ for installer
-            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.UPSIDE_DOWN_CAKE) {
-                // No special handling needed beyond standard flags for now
-            }
-        }
-        context.startActivity(intent)
+    fun canBypassPlayProtect(): Boolean {
+        return ShizukuInstaller.isAvailable() && ShizukuInstaller.hasPermission()
     }
 
     /**
-     * Builds a PendingIntent for installing an APK (used in notifications).
+     * Returns true if Shizuku is installed but MirrorPro hasn't been granted permission yet.
+     * UI should prompt the user to grant permission.
      */
-    fun buildInstallPendingIntent(context: Context, apkFile: File, requestCode: Int = 1001): PendingIntent {
-        val authority = "${context.packageName}.fileprovider"
-        val uri = FileProvider.getUriForFile(context, authority, apkFile)
-        val intent = Intent(Intent.ACTION_VIEW).apply {
-            setDataAndType(uri, "application/vnd.android.package-archive")
-            flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_GRANT_READ_URI_PERMISSION
+    fun needsShizukuPermission(): Boolean {
+        return ShizukuInstaller.isAvailable() && !ShizukuInstaller.hasPermission()
+    }
+
+    /**
+     * Installs the APK using the best available method.
+     *
+     * @param context
+     * @param apkFile  The downloaded APK file
+     * @param useShizukuIfAvailable  If true, uses Shizuku when available (skips Play Protect).
+     *                               If false, always uses the standard PackageInstaller API.
+     * @param onResult  Callback invoked when the install completes or fails.
+     *                  success=true if installed, false with a message if failed.
+     */
+    fun installApk(
+        context: Context,
+        apkFile: File,
+        useShizukuIfAvailable: Boolean = true,
+        onResult: (success: Boolean, message: String) -> Unit
+    ) {
+        if (useShizukuIfAvailable && ShizukuInstaller.isAvailable() && ShizukuInstaller.hasPermission()) {
+            // ⚡ Power-user path: completely bypasses Play Protect
+            ShizukuInstaller.installApk(context, apkFile, onResult)
+        } else {
+            // Standard path: triggers Play Protect warning (expected, unavoidable)
+            PackageInstallerHelper.installApk(context, apkFile, requireUserAction = true, onResult = onResult)
         }
-        val flags = PendingIntent.FLAG_UPDATE_CURRENT or
-                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) PendingIntent.FLAG_IMMUTABLE else 0
-        return PendingIntent.getActivity(context, requestCode, intent, flags)
     }
 }

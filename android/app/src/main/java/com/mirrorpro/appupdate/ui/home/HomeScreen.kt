@@ -48,6 +48,8 @@ fun HomeScreen(
     var apkUrlToDownload by remember { mutableStateOf<String?>(null) }
     var versionCodeToDownload by remember { mutableStateOf(1) }
     var showPrivacyPolicy by remember { mutableStateOf(false) }
+    var showPlayProtectInfo by remember { mutableStateOf(false) }
+    var showShizukuInfo by remember { mutableStateOf(false) }
     val scope = rememberCoroutineScope()
 
     // Notification permission (Android 13+)
@@ -153,19 +155,37 @@ fun HomeScreen(
                                 }
                             },
                             onInstallClick = {
-                                if (ApkInstallHelper.canRequestInstall(context)) {
-                                    val apk = ApkFileStorage.getApkFile(context, info.versionCode)
-                                    if (apk.exists()) {
-                                        ApkInstallHelper.installApk(context, apk)
-                                    } else {
-                                        scope.launch {
-                                            snackbarHostState.showSnackbar("APK file not found. Please download again.")
-                                        }
-                                    }
-                                } else {
-                                    ApkInstallHelper.openInstallPermissionSettings(context)
+                                val apk = ApkFileStorage.getApkFile(context, info.versionCode)
+                                if (!apk.exists()) {
                                     scope.launch {
-                                        snackbarHostState.showSnackbar("Please grant 'Install unknown apps' permission, then tap Install again.")
+                                        snackbarHostState.showSnackbar("APK file not found. Please download again.")
+                                    }
+                                    return@DownloadButton
+                                }
+                                if (!ApkInstallHelper.canRequestInstall(context) && !ApkInstallHelper.canBypassPlayProtect()) {
+                                    // No install permission and no Shizuku bypass — ask user to grant permission first
+                                    ApkInstallHelper.openInstallPermissionSettings(context)
+                                    showPlayProtectInfo = true
+                                    return@DownloadButton
+                                }
+                                // Try install — uses Shizuku if available, else standard API
+                                ApkInstallHelper.installApk(
+                                    context = context,
+                                    apkFile = apk,
+                                    useShizukuIfAvailable = true
+                                ) { success, message ->
+                                    scope.launch {
+                                        if (success) {
+                                            snackbarHostState.showSnackbar("✅ $message")
+                                        } else {
+                                            // If standard install failed and Shizuku not available,
+                                            // show Play Protect info dialog explaining how to install anyway
+                                            if (message.contains("blocked", ignoreCase = true) ||
+                                                message.contains("cancel", ignoreCase = true)) {
+                                                showPlayProtectInfo = true
+                                            }
+                                            snackbarHostState.showSnackbar("❌ $message")
+                                        }
                                     }
                                 }
                             },
@@ -198,6 +218,22 @@ fun HomeScreen(
     // Privacy policy dialog — shows the embedded privacy_policy.md from res/raw/
     if (showPrivacyPolicy) {
         PrivacyPolicyDialog(onDismiss = { showPrivacyPolicy = false })
+    }
+
+    // Play Protect info dialog — explains why the warning appears + how to install anyway
+    if (showPlayProtectInfo) {
+        PlayProtectInfoDialog(
+            onDismiss = { showPlayProtectInfo = false },
+            onOpenShizukuInfo = {
+                showPlayProtectInfo = false
+                showShizukuInfo = true
+            }
+        )
+    }
+
+    // Shizuku info dialog — explains how to install Shizuku for Play Protect bypass
+    if (showShizukuInfo) {
+        ShizukuInfoDialog(onDismiss = { showShizukuInfo = false })
     }
 }
 
@@ -235,6 +271,120 @@ private fun PrivacyPolicyDialog(onDismiss: () -> Unit) {
         },
         confirmButton = {
             TextButton(onClick = onDismiss) { Text("Close") }
+        }
+    )
+}
+
+@Composable
+private fun PlayProtectInfoDialog(
+    onDismiss: () -> Unit,
+    onOpenShizukuInfo: () -> Unit
+) {
+    androidx.compose.material3.AlertDialog(
+        onDismissRequest = onDismiss,
+        title = { Text("About the Play Protect Warning", fontWeight = FontWeight.Bold) },
+        text = {
+            androidx.compose.foundation.layout.Column(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .heightIn(max = 500.dp)
+                    .verticalScroll(rememberScrollState())
+            ) {
+                Text(
+                    text = "Google Play Protect may show a warning when you install MirrorPro. This is expected and the app is safe.",
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = MaterialTheme.colorScheme.onSurface
+                )
+                Spacer(Modifier.height(12.dp))
+                Text("Why does the warning appear?", fontWeight = FontWeight.SemiBold, style = MaterialTheme.typography.titleSmall)
+                Spacer(Modifier.height(4.dp))
+                Text(
+                    text = "• MirrorPro needs REQUEST_INSTALL_PACKAGES permission to install APK updates — this is the app's core feature.\n" +
+                           "• Any app with this permission gets extra scrutiny from Play Protect because malware also uses it.\n" +
+                           "• MirrorPro is not from the Play Store, so it has no reputation yet.\n\n" +
+                           "This is a false positive. The warning is the same one shown for F-Droid, Obtainium, and APKMirror Installer.",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurface
+                )
+                Spacer(Modifier.height(12.dp))
+                Text("How to install anyway:", fontWeight = FontWeight.SemiBold, style = MaterialTheme.typography.titleSmall)
+                Spacer(Modifier.height(4.dp))
+                Text(
+                    text = "1. When Play Protect shows the warning, tap \"More details\"\n" +
+                           "2. Tap \"Install anyway\" (or \"Still install\")\n" +
+                           "3. The app will install normally\n\n" +
+                           "MirrorPro is 100% open source. You can audit every line of code at:\n" +
+                           "github.com/stephenmarcus89s-star/androidfk",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurface
+                )
+                Spacer(Modifier.height(12.dp))
+                Text(
+                    text = "⚡ Want to skip the warning entirely?",
+                    fontWeight = FontWeight.SemiBold,
+                    style = MaterialTheme.typography.titleSmall,
+                    color = MaterialTheme.colorScheme.primary
+                )
+                Spacer(Modifier.height(4.dp))
+                Text(
+                    text = "You can install Shizuku (a free, open-source Android utility) and grant MirrorPro permission. " +
+                           "Shizuku runs the installer with the same privileges as ADB, which completely bypasses Play Protect. " +
+                           "This is a power-user feature — most users should just tap \"Install anyway\".",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurface
+                )
+            }
+        },
+        confirmButton = {
+            Row {
+                TextButton(onClick = onOpenShizukuInfo) { Text("Learn about Shizuku") }
+                Spacer(Modifier.width(8.dp))
+                TextButton(onClick = onDismiss) { Text("Got it") }
+            }
+        }
+    )
+}
+
+@Composable
+private fun ShizukuInfoDialog(onDismiss: () -> Unit) {
+    val context = LocalContext.current
+    androidx.compose.material3.AlertDialog(
+        onDismissRequest = onDismiss,
+        title = { Text("Install via Shizuku (No Play Protect)", fontWeight = FontWeight.Bold) },
+        text = {
+            androidx.compose.foundation.layout.Column(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .heightIn(max = 500.dp)
+                    .verticalScroll(rememberScrollState())
+            ) {
+                Text(
+                    text = "Shizuku is a free, open-source Android utility that lets apps run with ADB (debug) privileges — without root. " +
+                           "Because Android's package installer treats ADB installs as trusted, Play Protect is completely skipped.",
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = MaterialTheme.colorScheme.onSurface
+                )
+                Spacer(Modifier.height(12.dp))
+                Text("Setup steps (5 minutes):", fontWeight = FontWeight.SemiBold, style = MaterialTheme.typography.titleSmall)
+                Spacer(Modifier.height(4.dp))
+                Text(
+                    text = "1. Install Shizuku from the Play Store or F-Droid\n" +
+                           "2. Open Shizuku → follow the on-screen guide to start it via Wireless Debugging\n" +
+                           "3. In Shizuku, go to \"Apps using Shizuku\" → find MirrorPro → toggle permission ON\n" +
+                           "4. Come back to MirrorPro and tap Install — no Play Protect warning will appear",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurface
+                )
+                Spacer(Modifier.height(12.dp))
+                Text(
+                    text = "Note: Shizuku needs to be restarted after every phone reboot. This is a power-user feature — if it sounds too complex, just tap \"Install anyway\" on the Play Protect warning instead.",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+            }
+        },
+        confirmButton = {
+            TextButton(onClick = onDismiss) { Text("Got it") }
         }
     )
 }
