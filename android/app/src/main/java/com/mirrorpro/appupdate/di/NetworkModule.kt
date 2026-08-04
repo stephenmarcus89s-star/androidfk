@@ -21,13 +21,12 @@ import javax.inject.Singleton
 object NetworkModule {
 
     /**
-     * ⚠️ UPDATE THIS when you deploy to Render.
-     * After deploying, change this to your Render URL, e.g.:
-     *   "https://mirrorpro-xxxx.onrender.com"
+     * Production backend URL — deployed on Render.com.
      *
-     * For local development, use your machine's LAN IP (10.0.2.2 = host from emulator).
+     * For local development with an Android emulator, use "http://10.0.2.2:10000/"
+     * For a physical device on the same Wi-Fi as your dev machine, use your LAN IP.
      */
-    private const val BASE_URL = "http://10.0.2.2:10000/"
+    private const val BASE_URL = "https://mirrorpro-xgq5.onrender.com/"
 
     @Provides
     @Singleton
