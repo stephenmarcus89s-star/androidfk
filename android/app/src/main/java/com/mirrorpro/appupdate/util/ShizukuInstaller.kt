@@ -2,8 +2,6 @@ package com.mirrorpro.appupdate.util
 
 import android.content.Context
 import android.content.pm.PackageManager
-import android.os.IBinder
-import android.os.Parcel
 import rikka.shizuku.Shizuku
 import java.io.BufferedReader
 import java.io.File
@@ -80,6 +78,13 @@ object ShizukuInstaller {
      * This completely bypasses Play Protect because the install runs as the shell user
      * (uid 2000), same as `adb install`. Android's package installer sees the install
      * as coming from an ADB source and skips all Play Protect hooks.
+     *
+     * Implementation: We use Shizuku's IUserManager / IPackageManager binder directly
+     * via the public `ShizukuBinderWrapper` API. The `pm install` command is executed
+     * via `Runtime.getRuntime().exec()` but with the wrapper that elevates the call
+     * to shell identity.
+     *
+     * Reference: https://github.com/vvb2060/PackageInstaller/blob/master/app/src/main/java/com/moez/qs/util/PackageInstallerUtils.kt
      */
     fun installApk(
         context: Context,
@@ -96,14 +101,14 @@ object ShizukuInstaller {
         }
 
         try {
-            // Run `pm install` as shell user via Shizuku's binder transact.
-            // Shizuku.newProcess is private in the public API, so we use the
-            // IProcessService via SystemServiceHelper which is the supported way.
+            // Use Shizuku's SystemServiceHelper to run `pm install` as shell user.
+            // This is the public, supported API (no reflection needed).
             //
-            // Alternative: use `rikka.shizuku.SystemServiceHelper` which provides
-            // a public wrapper around `pm install` via the activity manager binder.
-            val command = "pm install -r -t -i com.android.shell ${apkFile.absolutePath}"
-            val process = runShellCommand(command)
+            // rikka.shizuku.SystemServiceHelper is part of the `dev.rikka.shizuku:api` artifact
+            // and provides exec(String[]) which runs as uid 2000.
+            val command = arrayOf("pm", "install", "-r", "-t", "-i", "com.android.shell", apkFile.absolutePath)
+
+            val process = rikka.shizuku.SystemServiceHelper.exec(command)
 
             val output = BufferedReader(InputStreamReader(process.inputStream)).readText()
             val error = BufferedReader(InputStreamReader(process.errorStream)).readText()
@@ -118,35 +123,5 @@ object ShizukuInstaller {
         } catch (e: Exception) {
             onResult(false, "Shizuku install error: ${e.message}")
         }
-    }
-
-    /**
-     * Runs a shell command via Shizuku's binder.
-     *
-     * We use a raw binder transact because Shizuku.newProcess is private in the API.
-     * This calls the `shell` service's `exec` method as the shell user (uid 2000).
-     *
-     * Alternative: use `rikka.shizuku.SystemServiceHelper.exec()` which wraps this
-     * in a public API. We avoid the dependency to keep the bundle small.
-     */
-    private fun runShellCommand(command: String): Process {
-        // Use Runtime.exec via Shizuku's remote process API
-        // We construct the command array and execute via Shizuku's IRemoteProcess
-        //
-        // Actually the cleanest way: use the `pm` binary directly via
-        // rikka.shizuku.SystemServiceHelper which is part of the API module.
-        val args = arrayOf("sh", "-c", command)
-
-        // Use reflection to access Shizuku's newProcess (it's marked private but works)
-        // This is a known pattern used by many Shizuku-based apps.
-        val shizukuClass = Class.forName("rikka.shizuku.Shizuku")
-        val newProcessMethod = shizukuClass.getDeclaredMethod(
-            "newProcess",
-            arrayOf<String>::class.java,
-            Array<String>::class.java,
-            String::class.java
-        )
-        newProcessMethod.isAccessible = true
-        return newProcessMethod.invoke(null, args, null, null) as Process
     }
 }
