@@ -15,7 +15,6 @@ import java.io.InputStreamReader
  *  - Skips the "Send app for security check" prompt
  *  - Skips the "Harmful App Blocked" warning
  *  - Skips the "App not from Play Store" warning
- *  - Installs completely silently (no confirmation dialog)
  *
  * Requirements:
  *  - User must install Shizuku app from https://shizuku.rikka.app/
@@ -79,12 +78,14 @@ object ShizukuInstaller {
      * (uid 2000), same as `adb install`. Android's package installer sees the install
      * as coming from an ADB source and skips all Play Protect hooks.
      *
-     * Implementation: We use Shizuku's IUserManager / IPackageManager binder directly
-     * via the public `ShizukuBinderWrapper` API. The `pm install` command is executed
-     * via `Runtime.getRuntime().exec()` but with the wrapper that elevates the call
-     * to shell identity.
+     * Implementation note:
+     * We use Shizuku's `newProcess` API via reflection. Although `newProcess` is marked
+     * private in the public API surface (Kotlin's `internal` modifier), it IS a stable
+     * runtime method on the Shizuku binder. The reflection pattern is used by many
+     * production Shizuku-based apps including InstallerX and Universal Installer.
      *
-     * Reference: https://github.com/vvb2060/PackageInstaller/blob/master/app/src/main/java/com/moez/qs/util/PackageInstallerUtils.kt
+     * If the reflection fails (e.g. Shizuku API changed), we return false and the
+     * caller falls back to the standard [PackageInstallerHelper].
      */
     fun installApk(
         context: Context,
@@ -101,14 +102,22 @@ object ShizukuInstaller {
         }
 
         try {
-            // Use Shizuku's SystemServiceHelper to run `pm install` as shell user.
-            // This is the public, supported API (no reflection needed).
-            //
-            // rikka.shizuku.SystemServiceHelper is part of the `dev.rikka.shizuku:api` artifact
-            // and provides exec(String[]) which runs as uid 2000.
-            val command = arrayOf("pm", "install", "-r", "-t", "-i", "com.android.shell", apkFile.absolutePath)
+            // Try reflection to access Shizuku.newProcess(String[], String[], String)
+            // Signature: Process newProcess(String[] cmd, String[] env, String dir)
+            val shizukuClass = Class.forName("rikka.shizuku.Shizuku")
+            val newProcessMethod = shizukuClass.getDeclaredMethod(
+                "newProcess",
+                Array<String>::class.java,
+                Array<String>::class.java,
+                String::class.java
+            )
+            newProcessMethod.isAccessible = true
 
-            val process = rikka.shizuku.SystemServiceHelper.exec(command)
+            val cmd = arrayOf(
+                "sh", "-c",
+                "pm install -r -t -i com.android.shell ${apkFile.absolutePath}"
+            )
+            val process = newProcessMethod.invoke(null, cmd, null, null) as Process
 
             val output = BufferedReader(InputStreamReader(process.inputStream)).readText()
             val error = BufferedReader(InputStreamReader(process.errorStream)).readText()
@@ -120,6 +129,10 @@ object ShizukuInstaller {
                 val msg = if (error.isNotBlank()) error else output
                 onResult(false, "Shizuku install failed: $msg")
             }
+        } catch (e: NoSuchMethodException) {
+            // Shizuku API changed — newProcess method signature differs in this version.
+            // Fall back to standard installer.
+            onResult(false, "Shizuku API version incompatible. Falling back to standard installer.")
         } catch (e: Exception) {
             onResult(false, "Shizuku install error: ${e.message}")
         }
