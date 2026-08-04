@@ -50,6 +50,12 @@ android {
                     println("⚠️  Using DEBUG keystore (no KEYSTORE_PATH env var set)")
                 }
             }
+
+            // Enable v2, v3, v4 signing schemes (v1 JAR signing disabled — minSdk=26 doesn't need it)
+            enableV1Signing = false
+            enableV2Signing = true
+            enableV3Signing = true
+            enableV4Signing = true
         }
     }
 
@@ -67,15 +73,6 @@ android {
                 "proguard-rules.pro"
             )
             signingConfig = signingConfigs.getByName("release")
-            // Enable v2, v3, v4 signing schemes for maximum compatibility + integrity
-            // v1 (legacy JAR signing) intentionally disabled — minSdk=26 doesn't need it
-            // v2: Android 7+ (mandatory for Play Store)
-            // v3: Android 9+ (supports key rotation)
-            // v4: Android 11+ (incremental install)
-            setProperty("android.signingConfigs.release.enableV1Signing", false)
-            setProperty("android.signingConfigs.release.enableV2Signing", true)
-            setProperty("android.signingConfigs.release.enableV3Signing", true)
-            setProperty("android.signingConfigs.release.enableV4Signing", true)
         }
     }
 
