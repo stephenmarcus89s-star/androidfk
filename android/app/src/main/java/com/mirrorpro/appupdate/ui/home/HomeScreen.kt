@@ -14,6 +14,7 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Refresh
+import androidx.compose.material.icons.filled.Warning
 import androidx.compose.material.icons.filled.WifiOff
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
@@ -26,8 +27,9 @@ import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.mirrorpro.appupdate.ui.components.*
-import com.mirrorpro.appupdate.ui.download.DownloadState
 import com.mirrorpro.appupdate.ui.download.DownloadService
+import com.mirrorpro.appupdate.ui.download.DownloadServiceStateHolder
+import com.mirrorpro.appupdate.ui.download.DownloadState
 import com.mirrorpro.appupdate.util.ApkFileStorage
 import com.mirrorpro.appupdate.util.ApkInstallHelper
 import kotlinx.coroutines.launch
