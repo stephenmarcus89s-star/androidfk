@@ -9,9 +9,11 @@ services:
     region: singapore  # change to your preferred region: oregon, frankfurt, ohio, singapore, etc.
 
     # Build: install backend deps, build the admin React app (outputs to backend/admin-dist)
+    # NOTE: We use --include=dev for the admin install because Vite/Tailwind/PostCSS
+    # are devDependencies and Render sets NODE_ENV=production which skips them by default.
     buildCommand: |
       cd backend && npm install &&
-      cd ../admin && npm install && npm run build
+      cd ../admin && npm install --include=dev && npm run build
 
     # Start: run the Express server which serves both API and admin panel
     startCommand: cd backend && node src/server.js
