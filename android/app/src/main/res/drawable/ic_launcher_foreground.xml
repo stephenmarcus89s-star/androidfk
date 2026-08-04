@@ -3,11 +3,12 @@
     android:height="108dp"
     android:viewportWidth="108"
     android:viewportHeight="108">
+    <!-- MirrorPro "M" logo mark in white -->
     <path
         android:fillColor="#FFFFFF"
-        android:pathData="M54,30 L74,30 A24,24 0 0 1 74,78 L54,78 L54,66 L70,66 A12,12 0 0 0 70,42 L54,42 Z" />
+        android:pathData="M34,30 L34,78 L46,78 L46,48 L62,68 L78,48 L78,78 L90,78 L90,30 L74,30 L62,52 L50,30 Z" />
+    <!-- Small dot to the right -->
     <path
         android:fillColor="#FFFFFF"
-        android:pathData="M54,30 L54,78 L34,78 A24,24 0 0 1 34,30 L54,30 L54,42 L38,42 A12,12 0 0 0 38,66 L54,66 Z" />
-    <circle android:fillColor="#FFFFFF" android:centerX="74" android:centerY="54" android:radius="5" />
+        android:pathData="M94,46 m-5,0 a5,5 0 1,0 10,0 a5,5 0 1,0 -10,0" />
 </vector>
