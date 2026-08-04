@@ -1,0 +1,49 @@
+<resources>
+    <string name="app_name">MirrorPro</string>
+    <string name="app_description">MirrorPro — your modern Android updater</string>
+
+    <!-- Update screen -->
+    <string name="update_available">Update Available</string>
+    <string name="you_are_up_to_date">You\'re Up To Date</string>
+    <string name="current_version">Current Version</string>
+    <string name="latest_version">Latest Version</string>
+    <string name="release_date">Release Date</string>
+    <string name="apk_size">APK Size</string>
+    <string name="android_version_required">Android Required</string>
+    <string name="downloads">Downloads</string>
+    <string name="ratings">Ratings</string>
+    <string name="package_name">Package</string>
+    <string name="whats_new">What\'s New</string>
+    <string name="screenshots">Screenshots</string>
+    <string name="download_update">Download Update</string>
+    <string name="install_update">Install Update</string>
+    <string name="pause">Pause</string>
+    <string name="resume">Resume</string>
+    <string name="cancel">Cancel</string>
+    <string name="continue_later">Continue Later</string>
+    <string name="retry">Retry</string>
+    <string name="mandatory_update_required">This update is required</string>
+    <string name="no_version_available">No version available yet</string>
+
+    <!-- Download -->
+    <string name="downloading">Downloading update…</string>
+    <string name="download_paused">Download paused</string>
+    <string name="download_complete">Download complete</string>
+    <string name="download_failed">Download failed</string>
+    <string name="preparing_install">Preparing to install…</string>
+    <string name="install_apk">Install APK</string>
+    <string name="open_downloaded_apk">Open downloaded APK</string>
+
+    <!-- Errors -->
+    <string name="error_no_internet">No internet connection</string>
+    <string name="error_load_failed">Failed to load update info</string>
+    <string name="error_no_apk">APK file not available</string>
+
+    <!-- Notifications -->
+    <string name="notif_channel_download">Downloads</string>
+    <string name="notif_channel_download_desc">APK download progress</string>
+
+    <!-- Misc -->
+    <string name="pull_to_refresh">Pull to refresh</string>
+    <string name="refreshing">Refreshing…</string>
+</resources>

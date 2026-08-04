@@ -1,0 +1,80 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  * {
+    @apply border-bg-600;
+  }
+  html, body, #root {
+    @apply h-full;
+  }
+  body {
+    @apply bg-bg-900 text-white;
+    font-feature-settings: 'cv11', 'ss01';
+    -webkit-font-smoothing: antialiased;
+  }
+}
+
+@layer components {
+  .card {
+    @apply bg-bg-800 border border-bg-600 rounded-2xl p-6 transition-all duration-200;
+  }
+  .card-hover:hover {
+    @apply border-accent-500/50 shadow-glow;
+  }
+  .btn {
+    @apply inline-flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl font-medium text-sm transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed;
+  }
+  .btn-primary {
+    @apply btn bg-accent-600 hover:bg-accent-500 text-white shadow-lg shadow-accent-600/30;
+  }
+  .btn-secondary {
+    @apply btn bg-bg-700 hover:bg-bg-600 border border-bg-600 text-white;
+  }
+  .btn-danger {
+    @apply btn bg-danger/10 hover:bg-danger/20 text-danger border border-danger/30;
+  }
+  .btn-ghost {
+    @apply btn text-white/70 hover:text-white hover:bg-bg-700;
+  }
+  .input {
+    @apply w-full bg-bg-700 border border-bg-600 rounded-xl px-4 py-2.5 text-white placeholder-white/40 focus:outline-none focus:ring-2 focus:ring-accent-500 focus:border-transparent transition;
+  }
+  .label {
+    @apply block text-sm font-medium text-white/70 mb-1.5;
+  }
+  .stat-card {
+    @apply card card-hover flex flex-col gap-2 animate-slide-up;
+  }
+  .skeleton {
+    @apply bg-gradient-to-r from-bg-700 via-bg-600 to-bg-700 bg-[length:1000px_100%] animate-shimmer rounded;
+  }
+}
+
+/* Scrollbar */
+::-webkit-scrollbar { width: 10px; height: 10px; }
+::-webkit-scrollbar-track { background: #0a0a0f; }
+::-webkit-scrollbar-thumb { background: #2a2a38; border-radius: 5px; }
+::-webkit-scrollbar-thumb:hover { background: #3a3a48; }
+
+/* Markdown rendering */
+.prose-dark {
+  @apply text-white/80;
+}
+.prose-dark h1, .prose-dark h2, .prose-dark h3 {
+  @apply text-white font-semibold mb-2 mt-4;
+}
+.prose-dark ul {
+  @apply list-disc list-inside space-y-1 my-2;
+}
+.prose-dark ol {
+  @apply list-decimal list-inside space-y-1 my-2;
+}
+.prose-dark a {
+  @apply text-accent-400 underline hover:text-accent-300;
+}
+.prose-dark code {
+  @apply bg-bg-700 px-1.5 py-0.5 rounded text-sm font-mono;
+}
+.prose-dark strong { @apply text-white font-semibold; }

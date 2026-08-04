@@ -1,0 +1,62 @@
+# Render.com Blueprint — deploys MirrorPro backend + admin panel as a single web service.
+# After connecting your GitHub repo to Render, this file tells Render how to build & run.
+
+services:
+  - type: web
+    name: mirrorpro
+    runtime: node
+    plan: pro  # your account has Pro
+    region: singapore  # change to your preferred region: oregon, frankfurt, ohio, singapore, etc.
+
+    # Build: install backend deps, build the admin React app (outputs to backend/admin-dist)
+    buildCommand: |
+      cd backend && npm install &&
+      cd ../admin && npm install && npm run build
+
+    # Start: run the Express server which serves both API and admin panel
+    startCommand: cd backend && node src/server.js
+
+    # Health check
+    healthCheckPath: /health
+
+    # Auto-deploy from main branch
+    autoDeploy: true
+    branch: main
+
+    # Environment variables
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: JWT_SECRET
+        generateValue: true  # Render generates a secure random value
+      - key: ADMIN_EMAIL
+        value: admin@mirrorpro.app
+      - key: ADMIN_PASSWORD
+        value: MirrorPro@2026!
+      - key: ADMIN_NAME
+        value: MirrorPro Admin
+      - key: MAX_APK_SIZE_MB
+        value: "200"
+      - key: MAX_IMAGE_SIZE_MB
+        value: "10"
+      - key: MAX_SCREENSHOTS
+        value: "10"
+      - key: RATE_LIMIT_WINDOW_MS
+        value: "900000"
+      - key: RATE_LIMIT_MAX
+        value: "100"
+      - key: CLIENT_URL
+        value: "*"
+
+    # Persistent disk for SQLite DB + uploaded files
+    # IMPORTANT: Without a disk, uploads + DB will be LOST on every redeploy.
+    disk:
+      name: mirrorpro-data
+      mountPath: /opt/render/project/src/backend/data
+      sizeGB: 5
+
+# Note on disk: Render Pro plan supports persistent disks.
+# We mount at backend/data so SQLite DB lives there.
+# Uploads folder (backend/uploads) is NOT on the disk by default —
+# we'll need to symlink or move uploads to the data dir on first run.
+# See DEPLOYMENT.md for the symlink trick.

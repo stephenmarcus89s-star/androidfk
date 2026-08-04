@@ -1,0 +1,46 @@
+# Dependencies
+node_modules/
+
+# Environment
+.env
+.env.local
+.env.*.local
+
+# Database
+data/*.db
+data/*.db-wal
+data/*.db-shm
+
+# Uploads (runtime content, lives in data/ on Render)
+data/uploads/apk/*
+data/uploads/logos/*
+data/uploads/screenshots/*
+!data/uploads/apk/.gitkeep
+!data/uploads/logos/.gitkeep
+!data/uploads/screenshots/.gitkeep
+
+# Legacy uploads dir (root-level, deprecated)
+uploads/apk/*
+uploads/logos/*
+uploads/screenshots/*
+!uploads/apk/.gitkeep
+!uploads/logos/.gitkeep
+!uploads/screenshots/.gitkeep
+
+# Build output
+admin-dist/
+dist/
+build/
+
+# Logs
+*.log
+npm-debug.log*
+
+# IDE
+.vscode/
+.idea/
+*.swp
+
+# OS
+.DS_Store
+Thumbs.db
