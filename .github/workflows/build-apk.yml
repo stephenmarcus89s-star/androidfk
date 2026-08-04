@@ -29,12 +29,16 @@ jobs:
           java-version: '17'
           distribution: 'temurin'
 
-      - name: Set up Android SDK
-        uses: android-actions/setup-android@v3
-        with:
-          packages: |
-            platforms;android-34
-            build-tools;34.0.0
+      - name: Setup Android SDK (preinstalled on runner)
+        run: |
+          # GitHub ubuntu-latest runners already have Android SDK 34 + build-tools 34.0.0 installed.
+          # Just make sure licenses are accepted and ANDROID_HOME is set.
+          echo "ANDROID_HOME=$ANDROID_HOME"
+          echo "ANDROID_SDK_ROOT=$ANDROID_SDK_ROOT"
+          ls "$ANDROID_HOME/platforms" 2>/dev/null || true
+          ls "$ANDROID_HOME/build-tools" 2>/dev/null || true
+          # Accept any missing licenses just in case
+          yes | sdkmanager --licenses > /dev/null 2>&1 || true
 
       - name: Setup Gradle
         uses: gradle/actions/setup-gradle@v3
@@ -79,7 +83,7 @@ jobs:
         working-directory: android
         run: gradle assembleRelease --no-daemon --stacktrace
 
-      - name: Build debug APK (fallback)
+      - name: Build debug APK (fallback if release fails)
         if: failure()
         working-directory: android
         run: gradle assembleDebug --no-daemon --stacktrace
@@ -89,20 +93,24 @@ jobs:
         working-directory: android
         run: |
           APK=$(find . -name "*.apk" -path "*/outputs/apk/*" | head -1)
+          if [ -z "$APK" ]; then echo "No APK found"; exit 1; fi
           echo "apk_path=$APK" >> $GITHUB_OUTPUT
           echo "apk_name=$(basename $APK)" >> $GITHUB_OUTPUT
+          echo "Found APK: $APK"
           ls -lh "$APK"
 
       - name: Upload APK artifact
+        if: always()
         uses: actions/upload-artifact@v4
         with:
           name: mirrorpro-apk
           path: android/app/build/outputs/apk/**/*.apk
           retention-days: 90
           compression-level: 0
+          if-no-files-found: warn
 
       - name: Create GitHub Release with APK
-        if: github.ref == 'refs/heads/main' || github.ref == 'refs/heads/master'
+        if: success() && (github.ref == 'refs/heads/main' || github.ref == 'refs/heads/master')
         uses: softprops/action-gh-release@v2
         with:
           tag_name: apk-${{ github.run_number }}
@@ -114,11 +122,15 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Summary
-        working-directory: android
+        if: always()
         run: |
-          echo "### APK Build Complete ✓" >> $GITHUB_STEP_SUMMARY
+          echo "### APK Build Result" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
-          echo "**APK Path:** \`${{ steps.apk.outputs.apk_path }}\`" >> $GITHUB_STEP_SUMMARY
-          echo "" >> $GITHUB_STEP_SUMMARY
-          echo "📥 Download the APK from the [Actions artifacts](https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }})" >> $GITHUB_STEP_SUMMARY
-          echo "📦 Or grab the latest [Release](https://github.com/${{ github.repository }}/releases)" >> $GITHUB_STEP_SUMMARY
+          if [ "${{ job.status }}" = "success" ]; then
+            echo "✅ **Build succeeded!**" >> $GITHUB_STEP_SUMMARY
+            echo "" >> $GITHUB_STEP_SUMMARY
+            echo "📥 Download APK from [Artifacts](https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }})" >> $GITHUB_STEP_SUMMARY
+            echo "📦 Or grab the latest [Release](https://github.com/${{ github.repository }}/releases)" >> $GITHUB_STEP_SUMMARY
+          else
+            echo "❌ **Build failed.** Check the logs above." >> $GITHUB_STEP_SUMMARY
+          fi
