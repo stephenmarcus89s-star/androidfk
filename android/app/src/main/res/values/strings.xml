@@ -43,6 +43,10 @@
     <string name="notif_channel_download">Downloads</string>
     <string name="notif_channel_download_desc">APK download progress</string>
 
+    <!-- Privacy -->
+    <string name="privacy_policy">Privacy Policy</string>
+    <string name="version_label">Version</string>
+
     <!-- Misc -->
     <string name="pull_to_refresh">Pull to refresh</string>
     <string name="refreshing">Refreshing…</string>

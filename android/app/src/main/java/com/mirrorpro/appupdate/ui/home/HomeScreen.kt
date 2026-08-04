@@ -13,6 +13,7 @@ import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.PrivacyTip
 import androidx.compose.material.icons.filled.Refresh
 import androidx.compose.material.icons.filled.Warning
 import androidx.compose.material.icons.filled.WifiOff
@@ -46,6 +47,7 @@ fun HomeScreen(
     var downloadState by remember { mutableStateOf<DownloadState>(DownloadState.Idle) }
     var apkUrlToDownload by remember { mutableStateOf<String?>(null) }
     var versionCodeToDownload by remember { mutableStateOf(1) }
+    var showPrivacyPolicy by remember { mutableStateOf(false) }
     val scope = rememberCoroutineScope()
 
     // Notification permission (Android 13+)
@@ -88,6 +90,9 @@ fun HomeScreen(
                     actions = {
                         IconButton(onClick = { viewModel.refresh() }) {
                             Icon(Icons.Filled.Refresh, contentDescription = "Refresh")
+                        }
+                        IconButton(onClick = { showPrivacyPolicy = true }) {
+                            Icon(Icons.Filled.PrivacyTip, contentDescription = "Privacy Policy")
                         }
                     }
                 )
@@ -189,6 +194,49 @@ fun HomeScreen(
             }
         }
     }
+
+    // Privacy policy dialog — shows the embedded privacy_policy.md from res/raw/
+    if (showPrivacyPolicy) {
+        PrivacyPolicyDialog(onDismiss = { showPrivacyPolicy = false })
+    }
+}
+
+@Composable
+private fun PrivacyPolicyDialog(onDismiss: () -> Unit) {
+    val context = LocalContext.current
+    var policyText by remember { mutableStateOf("Loading…") }
+
+    LaunchedEffect(Unit) {
+        policyText = try {
+            context.resources.openRawResource(com.mirrorpro.appupdate.R.raw.privacy_policy)
+                .bufferedReader()
+                .use { it.readText() }
+        } catch (e: Exception) {
+            "Failed to load privacy policy."
+        }
+    }
+
+    androidx.compose.material3.AlertDialog(
+        onDismissRequest = onDismiss,
+        title = { Text("Privacy Policy", fontWeight = FontWeight.Bold) },
+        text = {
+            androidx.compose.foundation.layout.Column(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .heightIn(max = 400.dp)
+                    .verticalScroll(rememberScrollState())
+            ) {
+                Text(
+                    text = policyText,
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurface
+                )
+            }
+        },
+        confirmButton = {
+            TextButton(onClick = onDismiss) { Text("Close") }
+        }
+    )
 }
 
 @Composable

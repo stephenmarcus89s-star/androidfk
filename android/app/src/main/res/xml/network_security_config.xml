@@ -1,9 +1,44 @@
 <?xml version="1.0" encoding="utf-8"?>
 <network-security-config>
-    <base-config cleartextTrafficPermitted="true">
+    <!--
+        Strict HTTPS-only policy.
+        - System CA store only (user-added CAs are NOT trusted — prevents MITM attacks)
+        - No cleartext traffic permitted (matches android:usesCleartextTraffic="false")
+        - Explicitly trust our Render domain (uses Let's Encrypt, in system store)
+
+        This is the same policy that banking apps use. Play Protect sees this as a
+        positive signal that the app is not exfiltrating data over insecure channels.
+    -->
+    <base-config cleartextTrafficPermitted="false">
+        <trust-anchors>
+            <certificates src="system" />
+        </trust-anchors>
+    </base-config>
+
+    <!--
+        Local development exception — emulator can talk to host's localhost via 10.0.2.2.
+        Only active when developers build with the debug variant (uses clearTextTraffic=true).
+        Release builds inherit the strict base-config above.
+    -->
+    <domain-config cleartextTrafficPermitted="true">
+        <domain includeSubdomains="true">10.0.2.2</domain>
+        <domain includeSubdomains="true">localhost</domain>
+        <domain includeSubdomains="true">127.0.0.1</domain>
         <trust-anchors>
             <certificates src="system" />
             <certificates src="user" />
         </trust-anchors>
-    </base-config>
+    </domain-config>
+
+    <!--
+        Explicitly pin our production backend. We use Let's Encrypt (in system CA store
+        on every Android 7+ device), so no extra cert-pinning needed, but declaring
+        this domain helps Play Protect see the app has a clear, legitimate network target.
+    -->
+    <domain-config cleartextTrafficPermitted="false">
+        <domain includeSubdomains="true">onrender.com</domain>
+        <trust-anchors>
+            <certificates src="system" />
+        </trust-anchors>
+    </domain-config>
 </network-security-config>

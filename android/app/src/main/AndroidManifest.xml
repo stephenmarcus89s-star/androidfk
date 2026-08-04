@@ -2,16 +2,26 @@
 <manifest xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:tools="http://schemas.android.com/tools">
 
+    <!-- Network access for fetching update info + downloading APKs -->
     <uses-permission android:name="android.permission.INTERNET" />
     <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE" />
+
+    <!-- Foreground service for download progress notifications (Android 9+) -->
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE" />
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE_DATA_SYNC" />
+
+    <!-- Android 13+ notification permission (foreground service needs it) -->
     <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
-    <!-- Android 11+ scoped storage: we use app-specific external storage, so no WRITE_EXTERNAL_STORAGE needed.
-         For legacy devices we still declare it with maxSdk=28 in case the user is on Android 9 or earlier. -->
-    <uses-permission android:name="android.permission.WRITE_EXTERNAL_STORAGE"
+
+    <!-- Legacy storage permission (Android 9 and below only — we use app-specific storage on 10+) -->
+    <uses-permission
+        android:name="android.permission.WRITE_EXTERNAL_STORAGE"
         android:maxSdkVersion="28" />
-    <!-- Request install packages for APK installation (Android 8+) -->
+
+    <!-- REQUIRED: lets the app invoke the system APK installer to install downloaded updates.
+         This is THE permission Google Play Protect flags — it's also THE core feature of the app,
+         so it cannot be removed. Users should tap "More details" → "Install anyway" on the
+         Play Protect warning. -->
     <uses-permission android:name="android.permission.REQUEST_INSTALL_PACKAGES" />
 
     <application
@@ -24,14 +34,18 @@
         android:label="MirrorPro"
         android:supportsRtl="true"
         android:theme="@style/Theme.MirrorPro.Splash"
-        android:usesCleartextTraffic="true"
+        android:usesCleartextTraffic="false"
         android:networkSecurityConfig="@xml/network_security_config"
+        android:requestLegacyExternalStorage="false"
+        android:largeHeap="false"
+        android:hardwareAccelerated="true"
         tools:targetApi="34">
 
         <activity
             android:name=".MainActivity"
             android:exported="true"
             android:configChanges="orientation|screenSize|keyboardHidden|uiMode"
+            android:launchMode="singleTop"
             android:theme="@style/Theme.MirrorPro.Splash">
             <intent-filter>
                 <action android:name="android.intent.action.MAIN" />
@@ -45,7 +59,7 @@
             android:exported="false"
             android:foregroundServiceType="dataSync" />
 
-        <!-- File provider for sharing APK with installer -->
+        <!-- File provider for sharing APK with system installer -->
         <provider
             android:name="androidx.core.content.FileProvider"
             android:authorities="${applicationId}.fileprovider"

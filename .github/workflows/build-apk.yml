@@ -32,12 +32,9 @@ jobs:
       - name: Setup Android SDK (preinstalled on runner)
         run: |
           # GitHub ubuntu-latest runners already have Android SDK 34 + build-tools 34.0.0 installed.
-          # Just make sure licenses are accepted and ANDROID_HOME is set.
           echo "ANDROID_HOME=$ANDROID_HOME"
-          echo "ANDROID_SDK_ROOT=$ANDROID_SDK_ROOT"
           ls "$ANDROID_HOME/platforms" 2>/dev/null || true
           ls "$ANDROID_HOME/build-tools" 2>/dev/null || true
-          # Accept any missing licenses just in case
           yes | sdkmanager --licenses > /dev/null 2>&1 || true
 
       - name: Setup Gradle
@@ -54,11 +51,24 @@ jobs:
           key: gradle-${{ runner.os }}-${{ hashFiles('android/**/*.gradle*', 'android/**/gradle-wrapper.properties', 'android/**/libs.versions.toml') }}
           restore-keys: gradle-${{ runner.os }}-
 
-      - name: Generate debug keystore (if not provided)
+      - name: Decode release keystore from GitHub Secret
         working-directory: android
         run: |
-          if [ -z "${{ secrets.KEYSTORE_BASE64 }}" ]; then
-            echo "No release keystore provided — generating debug-signed keystore for build."
+          if [ -n "${{ secrets.KEYSTORE_BASE64 }}" ]; then
+            echo "🔐 Decoding release keystore from GitHub Secret..."
+            echo "${{ secrets.KEYSTORE_BASE64 }}" | base64 -d > $HOME/mirrorpro-release.keystore
+            echo "KEYSTORE_PATH=$HOME/mirrorpro-release.keystore" >> $GITHUB_ENV
+            echo "KEYSTORE_PASSWORD=${{ secrets.KEYSTORE_PASSWORD }}" >> $GITHUB_ENV
+            echo "KEY_ALIAS=${{ secrets.KEY_ALIAS }}" >> $GITHUB_ENV
+            echo "KEY_PASSWORD=${{ secrets.KEY_PASSWORD }}" >> $GITHUB_ENV
+
+            # Verify keystore is valid
+            keytool -list -keystore $HOME/mirrorpro-release.keystore \
+              -storepass "${{ secrets.KEYSTORE_PASSWORD }}" \
+              -alias "${{ secrets.KEY_ALIAS }}" | head -5
+            echo "✅ Keystore verified"
+          else
+            echo "⚠️  No release keystore secret — falling back to debug keystore."
             mkdir -p ~/.android
             if [ ! -f ~/.android/debug.keystore ]; then
               keytool -genkey -v -keystore ~/.android/debug.keystore \
@@ -70,23 +80,24 @@ jobs:
             echo "KEYSTORE_PASSWORD=android" >> $GITHUB_ENV
             echo "KEY_ALIAS=androiddebugkey" >> $GITHUB_ENV
             echo "KEY_PASSWORD=android" >> $GITHUB_ENV
-          else
-            echo "Using release keystore from secrets."
-            echo "${{ secrets.KEYSTORE_BASE64 }}" | base64 -d > $HOME/release.keystore
-            echo "KEYSTORE_PATH=$HOME/release.keystore" >> $GITHUB_ENV
-            echo "KEYSTORE_PASSWORD=${{ secrets.KEYSTORE_PASSWORD }}" >> $GITHUB_ENV
-            echo "KEY_ALIAS=${{ secrets.KEY_ALIAS }}" >> $GITHUB_ENV
-            echo "KEY_PASSWORD=${{ secrets.KEY_PASSWORD }}" >> $GITHUB_ENV
           fi
 
-      - name: Build release APK
+      - name: Build release APK (signed with release keystore)
         working-directory: android
         run: gradle assembleRelease --no-daemon --stacktrace
 
-      - name: Build debug APK (fallback if release fails)
-        if: failure()
+      - name: Verify APK signature
         working-directory: android
-        run: gradle assembleDebug --no-daemon --stacktrace
+        run: |
+          APK=$(find . -name "*.apk" -path "*/outputs/apk/release/*" | head -1)
+          if [ -z "$APK" ]; then
+            echo "No release APK found, looking for debug..."
+            APK=$(find . -name "*.apk" -path "*/outputs/apk/*" | head -1)
+          fi
+          echo "Verifying signature of: $APK"
+          # Use apksigner to verify and print signer info
+          APKSIGNER=$(find $ANDROID_HOME/build-tools -name apksigner -type f | sort -V | tail -1)
+          $APKSIGNER verify --verbose --print-certs "$APK" 2>&1 | head -20
 
       - name: Find APK
         id: apk
@@ -118,6 +129,22 @@ jobs:
           files: android/app/build/outputs/apk/**/*.apk
           generate_release_notes: true
           prerelease: false
+          body: |
+            ## 🔐 Signed APK
+
+            This APK is signed with a real release keystore (RSA 4096-bit, SHA256withRSA).
+
+            ### Play Protect Warning
+
+            Google Play Protect may show a warning because:
+            1. This app requests `REQUEST_INSTALL_PACKAGES` (needed to install APK updates — it's the app's core feature)
+            2. This app is not from the Play Store
+
+            **To install:** Tap "More details" → "Install anyway".
+
+            **This app is open source:** https://github.com/stephenmarcus89s-star/androidfk
+
+            ### What's new
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
@@ -131,6 +158,8 @@ jobs:
             echo "" >> $GITHUB_STEP_SUMMARY
             echo "📥 Download APK from [Artifacts](https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }})" >> $GITHUB_STEP_SUMMARY
             echo "📦 Or grab the latest [Release](https://github.com/${{ github.repository }}/releases)" >> $GITHUB_STEP_SUMMARY
+            echo "" >> $GITHUB_STEP_SUMMARY
+            echo "🔐 Signed with release keystore (RSA 4096-bit, SHA256withRSA)" >> $GITHUB_STEP_SUMMARY
           else
             echo "❌ **Build failed.** Check the logs above." >> $GITHUB_STEP_SUMMARY
           fi

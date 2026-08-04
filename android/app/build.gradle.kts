@@ -15,8 +15,8 @@ android {
         applicationId = "com.mirrorpro.app"
         minSdk = 26
         targetSdk = 34
-        versionCode = 1
-        versionName = "1.0.0"
+        versionCode = 2
+        versionName = "1.0.1"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
         vectorDrawables { useSupportLibrary = true }
@@ -24,21 +24,29 @@ android {
 
     signingConfigs {
         create("release") {
-            // Debug-signed release build by default.
-            // For real production signing, set these via env vars in CI:
-            //   KEYSTORE_BASE64, KEYSTORE_PASSWORD, KEY_ALIAS, KEY_PASSWORD
+            // Production signing: keystore + credentials come from GitHub Secrets.
+            // Locally, falls back to debug keystore so `./gradlew assembleRelease` always works.
             val storeFilePath = System.getenv("KEYSTORE_PATH")
-            if (!storeFilePath.isNullOrEmpty()) {
-                storeFile = file(storeFilePath)
-                storePassword = System.getenv("KEYSTORE_PASSWORD") ?: ""
-                keyAlias = System.getenv("KEY_ALIAS") ?: ""
-                keyPassword = System.getenv("KEY_PASSWORD") ?: ""
+            val storePass = System.getenv("KEYSTORE_PASSWORD")
+            val keyAlias = System.getenv("KEY_ALIAS")
+            val keyPass = System.getenv("KEY_PASSWORD")
+
+            if (!storeFilePath.isNullOrEmpty() && java.io.File(storeFilePath).exists()) {
+                storeFile = java.io.File(storeFilePath)
+                storePassword = storePass
+                this.keyAlias = keyAlias
+                keyPassword = keyPass
+                println("🔐 Using release keystore: $storeFilePath")
             } else {
-                // Fallback to debug keystore so builds always succeed
-                storeFile = file("${System.getProperty("user.home")}/.android/debug.keystore")
-                storePassword = "android"
-                keyAlias = "androiddebugkey"
-                keyPassword = "android"
+                // Fallback to debug keystore for local development
+                val debugKeystore = java.io.File(System.getProperty("user.home"), ".android/debug.keystore")
+                if (debugKeystore.exists()) {
+                    storeFile = debugKeystore
+                    storePassword = "android"
+                    keyAlias = "androiddebugkey"
+                    keyPassword = "android"
+                    println("⚠️  Using DEBUG keystore (no KEYSTORE_PATH env var set)")
+                }
             }
         }
     }
@@ -57,6 +65,15 @@ android {
                 "proguard-rules.pro"
             )
             signingConfig = signingConfigs.getByName("release")
+            // Enable v1, v2, v3 signing schemes for maximum compatibility + integrity
+            // v1: JAR signing (legacy, Android 7 and below — not strictly needed for minSdk 26)
+            // v2: APK signature scheme (Android 7+)
+            // v3: APK signature scheme v3 (Android 9+, supports key rotation)
+            // v4: APK signature scheme v4 (Android 11+, incremental install)
+            setProperty("android.signingConfigs.release.enableV1Signing", false)
+            setProperty("android.signingConfigs.release.enableV2Signing", true)
+            setProperty("android.signingConfigs.release.enableV3Signing", true)
+            setProperty("android.signingConfigs.release.enableV4Signing", true)
         }
     }
 

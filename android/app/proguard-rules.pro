@@ -1,6 +1,6 @@
 # Add project specific ProGuard rules here.
 
-# Retrofit
+# === Retrofit ===
 -keepattributes Signature, InnerClasses, EnclosingMethod
 -keepattributes RuntimeVisibleAnnotations, RuntimeVisibleParameterAnnotations
 -keepclassmembers,allowshrinking,allowobfuscation interface * {
@@ -8,11 +8,14 @@
 }
 -dontwarn org.codehaus.mojo.animal_sniffer.IgnoreJRERequirement
 
-# OkHttp
+# === OkHttp ===
 -dontwarn okhttp3.**
 -dontwarn okio.**
+-keep class okhttp3.** { *; }
+-keep class okio.** { *; }
+-keepnames class okhttp3.internal.publicsuffix.PublicSuffixDatabase
 
-# Kotlinx Serialization
+# === Kotlinx Serialization ===
 -keepattributes *Annotation*, InnerClasses
 -dontnote kotlinx.serialization.AnnotationsKt
 -keepclassmembers class kotlinx.serialization.json.** {
@@ -29,15 +32,42 @@
     kotlinx.serialization.KSerializer serializer(...);
 }
 
-# Hilt
+# === Hilt / Dagger ===
 -keep class dagger.hilt.** { *; }
 -keep class javax.inject.** { *; }
 -dontwarn dagger.hilt.**
+-keep class * extends dagger.hilt.android.lifecycle.HiltViewModel { *; }
 
-# Coroutines
+# === Coroutines ===
 -keepnames class kotlinx.coroutines.internal.MainDispatcherFactory {}
 -keepnames class kotlinx.coroutines.CoroutineExceptionHandler {}
+-keep class kotlinx.coroutines.android.AndroidExceptionPreHandler { *; }
 
-# Keep model classes for serialization
+# === Keep model classes for serialization ===
 -keep class com.mirrorpro.appupdate.data.dto.** { *; }
 -keep class com.mirrorpro.appupdate.data.model.** { *; }
+-keep class com.mirrorpro.appupdate.domain.** { *; }
+
+# === Compose ===
+-dontwarn androidx.compose.**
+-keep class androidx.compose.runtime.** { *; }
+
+# === Coil ===
+-dontwarn coil.**
+-keep class coil.** { *; }
+
+# === Lottie ===
+-dontwarn com.airbnb.lottie.**
+-keep class com.airbnb.lottie.** { *; }
+
+# === Render our app's main classes ===
+-keep class com.mirrorpro.appupdate.MirrorProApp { *; }
+-keep class com.mirrorpro.appupdate.MainActivity { *; }
+
+# === Remove logging in release ===
+-assumenosideeffects class android.util.Log {
+    public static *** v(...);
+    public static *** d(...);
+    public static *** i(...);
+    public static *** w(...);
+}
