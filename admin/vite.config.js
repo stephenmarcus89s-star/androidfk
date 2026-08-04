@@ -19,5 +19,16 @@ export default defineConfig({
   build: {
     outDir: path.resolve(__dirname, '..', 'backend', 'admin-dist'),
     emptyOutDir: true,
+    // Code splitting for better caching + smaller initial bundle
+    rollupOptions: {
+      output: {
+        manualChunks: {
+          'react-vendor': ['react', 'react-dom', 'react-router-dom'],
+          'ui-vendor': ['lucide-react', 'sonner', 'zustand', 'clsx'],
+        },
+      },
+    },
+    // Increase chunk size warning limit so we don't see noise
+    chunkSizeWarningLimit: 500,
   },
 });

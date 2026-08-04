@@ -1,4 +1,4 @@
-import { Link, useLocation, useNavigate } from 'react-router-dom';
+import { Link, Outlet, useLocation, useNavigate } from 'react-router-dom';
 import {
   LayoutDashboard,
   AppWindow,
@@ -19,7 +19,7 @@ const navItems = [
   { to: '/settings', label: 'Settings', icon: SettingsIcon },
 ];
 
-export default function Layout({ children }) {
+export default function Layout() {
   const location = useLocation();
   const navigate = useNavigate();
   const admin = useAuthStore((s) => s.admin);
@@ -115,9 +115,11 @@ export default function Layout({ children }) {
         })}
       </nav>
 
-      {/* Main content */}
+      {/* Main content — Outlet renders the matched child route */}
       <main className="flex-1 md:ml-64 pt-16 pb-20 md:pt-0 md:pb-0">
-        <div className="p-4 md:p-8 max-w-7xl mx-auto animate-fade-in">{children}</div>
+        <div className="p-4 md:p-8 max-w-7xl mx-auto animate-fade-in">
+          <Outlet />
+        </div>
       </main>
     </div>
   );
