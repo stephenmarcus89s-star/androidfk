@@ -20,7 +20,19 @@ export default function Uploads() {
 
   const update = (k, v) => setForm((f) => ({ ...f, [k]: v }));
 
+  const MAX_APK_MB = 100;
+
   const handleApkSelect = (file) => {
+    // Client-side size check — fail fast before wasting bandwidth
+    if (file.size > MAX_APK_MB * 1024 * 1024) {
+      toast.error(`File is ${(file.size / 1024 / 1024).toFixed(1)} MB — max allowed is ${MAX_APK_MB} MB`);
+      return;
+    }
+    // Verify .apk extension
+    if (!file.name.toLowerCase().endsWith('.apk')) {
+      toast.error('Only .apk files are allowed');
+      return;
+    }
     setApkFile(file);
     // Auto-fill version_name from filename if empty
     if (!form.version_name) {
@@ -138,7 +150,7 @@ export default function Uploads() {
               onUpload={handleApkSelect}
               accept="application/vnd.android.package-archive,.apk"
               label="Select APK file"
-              hint=".apk files only — max 200MB"
+              hint=".apk files only — max 100 MB"
             />
           )}
         </div>

@@ -38,7 +38,7 @@ services:
       - key: ADMIN_NAME
         value: MirrorPro Admin
       - key: MAX_APK_SIZE_MB
-        value: "200"
+        value: "100"
       - key: MAX_IMAGE_SIZE_MB
         value: "10"
       - key: MAX_SCREENSHOTS

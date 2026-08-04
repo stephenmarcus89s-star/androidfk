@@ -34,7 +34,7 @@ export const config = {
   uploads: {
     // Default: place uploads inside data/ so they persist on Render's disk
     dir: process.env.UPLOAD_DIR || path.join(rootDir, 'data', 'uploads'),
-    maxApkSize: parseInt(process.env.MAX_APK_SIZE_MB || '200', 10) * 1024 * 1024,
+    maxApkSize: parseInt(process.env.MAX_APK_SIZE_MB || '100', 10) * 1024 * 1024,
     maxImageSize: parseInt(process.env.MAX_IMAGE_SIZE_MB || '10', 10) * 1024 * 1024,
     maxScreenshots: parseInt(process.env.MAX_SCREENSHOTS || '10', 10),
     apkDir: 'apk',

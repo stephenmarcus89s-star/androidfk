@@ -18,6 +18,10 @@ import { AppModel } from './models/App.js';
 import { SettingsModel } from './models/Settings.js';
 import { hashPassword } from './utils/hash.js';
 
+// Bump libuv threadpool so multiple concurrent uploads/multipart parses don't queue.
+// Must be set BEFORE any I/O happens (i.e. before bootstrap runs).
+process.env.UV_THREADPOOL_SIZE = process.env.UV_THREADPOOL_SIZE || '64';
+
 async function bootstrap() {
   // Init DB + migrations
   getDb();
@@ -47,7 +51,12 @@ async function bootstrap() {
     crossOriginResourcePolicy: { policy: 'cross-origin' },
     contentSecurityPolicy: false,
   }));
-  app.use(compression());
+  // Skip compression for upload routes — multipart bodies are already efficient
+  // and compressing large streams blocks the event loop.
+  app.use((req, res, next) => {
+    if (req.path.startsWith('/api/upload')) return next();
+    compression()(req, res, next);
+  });
   app.use(cors({ origin: config.clientUrl === '*' ? true : config.clientUrl, credentials: true }));
   app.use(express.json({ limit: '1mb' }));
   app.use(express.urlencoded({ extended: true }));
@@ -83,13 +92,22 @@ async function bootstrap() {
   app.use(notFound);
   app.use(errorHandler);
 
-  app.listen(config.port, () => {
+  const server = app.listen(config.port, () => {
     console.log(`\n🚀 MirrorPro backend running on port ${config.port}`);
     console.log(`   Environment: ${config.env}`);
     console.log(`   Public URL:  ${config.baseUrl}`);
     console.log(`   Admin login: ${config.admin.email}`);
-    console.log(`   Latest API:  ${config.baseUrl}/api/latest\n`);
+    console.log(`   Latest API:  ${config.baseUrl}/api/latest`);
+    console.log(`   Max APK:     ${config.uploads.maxApkSize / 1024 / 1024} MB\n`);
   });
+
+  // Extend server timeouts so large APK uploads (up to 100MB) don't get killed.
+  // Default Node HTTP server timeout is 2 minutes — way too short for a 100MB
+  // upload on a 5Mbps mobile connection (~3 min). We bump everything to 10 min.
+  server.timeout = 10 * 60 * 1000;            // 10 min — total request timeout
+  server.keepAliveTimeout = 65 * 1000;        // > Render LB 60s idle
+  server.requestTimeout = 10 * 60 * 1000;     // 10 min (Node 18+)
+  server.headersTimeout = 70 * 1000;          // must be > keepAliveTimeout
 }
 
 bootstrap().catch(err => {

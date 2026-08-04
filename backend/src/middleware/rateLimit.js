@@ -18,7 +18,7 @@ export const authLimiter = rateLimit({
 
 export const uploadLimiter = rateLimit({
   windowMs: 60 * 1000,
-  max: 30,
+  max: 60,  // 60 uploads/min — generous because each large APK upload is one request
   standardHeaders: true,
   legacyHeaders: false,
   message: { error: 'Too many uploads, please slow down.' },
