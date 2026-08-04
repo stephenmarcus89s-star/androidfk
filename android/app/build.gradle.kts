@@ -1,3 +1,5 @@
+import java.io.File
+
 plugins {
     alias(libs.plugins.android.application)
     alias(libs.plugins.kotlin.android)
@@ -24,22 +26,22 @@ android {
 
     signingConfigs {
         create("release") {
-            // Production signing: keystore + credentials come from GitHub Secrets.
+            // Production signing: keystore + credentials come from GitHub Secrets (env vars).
             // Locally, falls back to debug keystore so `./gradlew assembleRelease` always works.
             val storeFilePath = System.getenv("KEYSTORE_PATH")
             val storePass = System.getenv("KEYSTORE_PASSWORD")
-            val keyAlias = System.getenv("KEY_ALIAS")
+            val alias = System.getenv("KEY_ALIAS")
             val keyPass = System.getenv("KEY_PASSWORD")
 
-            if (!storeFilePath.isNullOrEmpty() && java.io.File(storeFilePath).exists()) {
-                storeFile = java.io.File(storeFilePath)
+            if (!storeFilePath.isNullOrEmpty() && File(storeFilePath).exists()) {
+                storeFile = File(storeFilePath)
                 storePassword = storePass
-                this.keyAlias = keyAlias
+                keyAlias = alias
                 keyPassword = keyPass
                 println("🔐 Using release keystore: $storeFilePath")
             } else {
                 // Fallback to debug keystore for local development
-                val debugKeystore = java.io.File(System.getProperty("user.home"), ".android/debug.keystore")
+                val debugKeystore = File(System.getProperty("user.home"), ".android/debug.keystore")
                 if (debugKeystore.exists()) {
                     storeFile = debugKeystore
                     storePassword = "android"
@@ -65,11 +67,11 @@ android {
                 "proguard-rules.pro"
             )
             signingConfig = signingConfigs.getByName("release")
-            // Enable v1, v2, v3 signing schemes for maximum compatibility + integrity
-            // v1: JAR signing (legacy, Android 7 and below — not strictly needed for minSdk 26)
-            // v2: APK signature scheme (Android 7+)
-            // v3: APK signature scheme v3 (Android 9+, supports key rotation)
-            // v4: APK signature scheme v4 (Android 11+, incremental install)
+            // Enable v2, v3, v4 signing schemes for maximum compatibility + integrity
+            // v1 (legacy JAR signing) intentionally disabled — minSdk=26 doesn't need it
+            // v2: Android 7+ (mandatory for Play Store)
+            // v3: Android 9+ (supports key rotation)
+            // v4: Android 11+ (incremental install)
             setProperty("android.signingConfigs.release.enableV1Signing", false)
             setProperty("android.signingConfigs.release.enableV2Signing", true)
             setProperty("android.signingConfigs.release.enableV3Signing", true)
